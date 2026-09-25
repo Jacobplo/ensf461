@@ -18,7 +18,7 @@ int main(int argc, char** argv) {
     if ( fin == NULL ) {
         fprintf(stderr, "Error: unable to open file %s\n\n", argv[1]);
         return -2;
-    }
+    } 
 
     int* newline = read_next_line(fin);
     record_t* head = NULL;
@@ -38,9 +38,28 @@ int main(int argc, char** argv) {
     // TODO: write the list to the output file
     // Each line of the output file should contain the average and the standard deviation
     // as a comma-separated pair (e.g., "1.23,4.56")
+    
+    FILE* fout = fopen(argv[2], "w");
+    if ( fout == NULL ) {
+        fprintf(stderr, "Error: unable to open file %s\n\n", argv[2]);
+        return -2;
+    }
 
+    curr = head;
+    while (curr != NULL) {
+        fprintf(fout, "%f,%f\n", curr->avg, curr->sdv);
+        curr = curr->next;
+    }
+    fclose(fout);
 
     // TODO: free all the memory allocated for the list
+    
+    curr = head;
+    do {
+        record_t *next = curr->next;
+        free(curr);
+        curr = next;
+    } while (curr != NULL);
 
 
     return 0;
