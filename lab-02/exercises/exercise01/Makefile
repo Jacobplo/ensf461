@@ -21,7 +21,7 @@ all: check_linux $(TARGETS) test
 $(BUILD_DIR)/%.out: %.c $(COMMON)
 	@mkdir -p $(BUILD_DIR)
 	@printf "\tCC\t$@\n"
-	@$(CC) -o $@ $^
+	$(CC) -o $@ $^
 
 .PHONY: clean
 clean:
