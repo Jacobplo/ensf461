@@ -50,7 +50,7 @@ int main(int argc, char** argv) {
     curr = head;
     while (curr != NULL) {
         fprintf(fout, "%f,%f\n", curr->avg, curr->sdv);
-        curr = curr->next;
+        curr = next(curr);
     }
     fclose(fout);
 
@@ -59,9 +59,9 @@ int main(int argc, char** argv) {
     // Free all memory the linked list
     curr = head;
     do {
-        record_t *next = curr->next;
+        record_t *next_elem = next(curr);
         free(curr);
-        curr = next;
+        curr = next_elem;
     } while (curr != NULL);
 
 
