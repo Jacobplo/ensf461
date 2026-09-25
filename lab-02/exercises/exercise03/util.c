@@ -18,20 +18,26 @@ int* read_next_line(FILE* fin) {
     size_t size = 0;
     ssize_t len = 0;
 
+    // Get next line in the stream 
     if ((len = getline(&line, &size, fin)) != -1) {
+        // Allocate an initial buffer of 128 integers
         ret = malloc(128 * sizeof(int));
         size_t count = 0;
 
+        // Tokenize the line, splitting at commas
         char *token = strtok(line, ",");
         while (token != NULL) {
+            // Parse elements as integers and insert into the new array
             ret[count + 1] = atoi(token);
             count++;
 
+            // Get next token
             token = strtok(0, ",");
         };
 
         ret[0] = count;
 
+        // Reallocate the buffer based on used size
         ret = realloc(ret, (count + 1) * sizeof(int));
     }
 

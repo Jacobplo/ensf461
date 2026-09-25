@@ -38,13 +38,15 @@ int main(int argc, char** argv) {
     // TODO: write the list to the output file
     // Each line of the output file should contain the average and the standard deviation
     // as a comma-separated pair (e.g., "1.23,4.56")
-    
+
+    // Open the output file in write mode
     FILE* fout = fopen(argv[2], "w");
     if ( fout == NULL ) {
         fprintf(stderr, "Error: unable to open file %s\n\n", argv[2]);
         return -2;
     }
 
+    // Iterate over the linked list, printing each datum to the output file
     curr = head;
     while (curr != NULL) {
         fprintf(fout, "%f,%f\n", curr->avg, curr->sdv);
@@ -53,7 +55,8 @@ int main(int argc, char** argv) {
     fclose(fout);
 
     // TODO: free all the memory allocated for the list
-    
+   
+    // Free all memory the linked list
     curr = head;
     do {
         record_t *next = curr->next;
