@@ -62,13 +62,13 @@ float compute_stdev(int* line) {
     // TODO: Compute the standard deviation of the integers in the vector
     // Recall that the first element of the vector is the number of integers
     
-    int mean = compute_average(line);
+    float mean = compute_average(line);
 
     float sum_of_squares = 0;
 
     size_t len = line[0];
     for (size_t i = 1; i < len + 1; i++) {
-        sum_of_squares += powf((float)line[i] - mean, 2);
+        sum_of_squares += powf(line[i] - mean, 2);
     }
 
     return sqrt(sum_of_squares / len);
