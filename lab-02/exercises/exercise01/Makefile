@@ -1,35 +1,26 @@
-OS := $(shell uname)
+CC = gcc
+OS = $(shell uname -s)
 
-CC := gcc
-
-BUILD_DIR := build
-
-TARGETS := $(BUILD_DIR)/gen_in_range.out \
-           $(BUILD_DIR)/gen_numbers.out \
-           $(BUILD_DIR)/select_arg.out
-
-COMMON := utils.c
-
-# =============
-# Basic targets
-# =============
-
-.DEFAULT_GOAL := all
 .PHONY: all
-all: check_linux $(TARGETS) test
+all: check_linux gen_in_range.out gen_numbers.out select_arg.out
 
-$(BUILD_DIR)/%.out: %.c $(COMMON)
-	@mkdir -p $(BUILD_DIR)
-	@printf "\tCC\t$@\n"
+%.o: %.c
+	$(CC) -c -o $@ $<
+
+gen_in_range.out: gen_in_range.o
+	$(CC) -o $@ $<
+
+gen_numbers.out: gen_numbers.o utils.o
 	$(CC) -o $@ $^
 
-.PHONY: clean
-clean:
-	rm -rf $(BUILD_DIR)
+select_arg.out: select_arg.o utils.o
+	$(CC) -o $@ $^
 
-# =====
-# Tests
-# =====
+.PHONY: test
+test: gen_in_range.out gen_numbers.out select_arg.out
+	./gen_in_range.out 1 10
+	./gen_numbers.out 5
+	./select_arg.out 3 1 2 3 4 5
 
 .PHONY: check_linux
 check_linux:
@@ -38,20 +29,7 @@ check_linux:
 		false; \
 	fi
 
-.PHONY: test
-test: test_gen_in_range test_gen_numbers test_select_arg
+.PHONY: clean
+clean:
+	rm -f *.out *.o
 
-.PHONY: test_gen_in_range
-test_gen_in_range: $(BUILD_DIR)/gen_in_range.out
-	@printf "\tTEST\t$<\n"
-	@./build/gen_in_range.out 0 5 >/dev/null
-
-.PHONY: test_gen_numbers
-test_gen_numbers: $(BUILD_DIR)/gen_numbers.out
-	@printf "\tTEST\t$<\n"
-	@./build/gen_numbers.out 5 >/dev/null
-
-.PHONY: test_select_arg
-test_select_arg: $(BUILD_DIR)/select_arg.out
-	@printf "\tTEST\t$<\n"
-	@./build/select_arg.out 1 2 3 4 5 >/dev/null
