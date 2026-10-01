@@ -58,11 +58,11 @@ int main(int argc, char** argv) {
    
     // Free all memory the linked list
     curr = head;
-    do {
+    while (curr != NULL) {
         record_t *next_elem = next(curr);
         free(curr);
         curr = next_elem;
-    } while (curr != NULL);
+    };
 
 
     return 0;
