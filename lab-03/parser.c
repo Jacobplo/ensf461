@@ -35,7 +35,7 @@ int tokenize_string(char **out, char* in, size_t out_len, size_t in_len) {
   //printf("%s\n", cmd);
 
   int i = 0;
-  char* token = strtok(cmd, " \t\n\r");
+  char* token = strtok(cmd, " \t\n\r\"");
   while (token != NULL) {
     if (i >= out_len) {
       return -1;
@@ -44,7 +44,7 @@ int tokenize_string(char **out, char* in, size_t out_len, size_t in_len) {
     out[i] = strdup(token);
     i++;
 
-    token = strtok(NULL, " \t\n\r");
+    token = strtok(NULL, " \t\n\r\"");
   }
 
   if (i >= out_len) {
@@ -54,8 +54,8 @@ int tokenize_string(char **out, char* in, size_t out_len, size_t in_len) {
 
   int cmd_pos = -1;
   if (pipe_pos >= 0) {
-    for (int i = pipe_pos; i < in_len; i++) {
-      if (isvalidascii(&in[i], 1)) {
+    for (int i = pipe_pos + 1; i < in_len; i++) {
+      if (in[i] != ' ') {
         cmd_pos = i;
         break;
       }

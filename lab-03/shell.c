@@ -29,39 +29,55 @@ int main() {
     //Clean and parse the input string
     //parsedinput = (char*) malloc(BUFLEN * sizeof(char));
     //size_t parselength = trimstring(parsedinput, input, BUFLEN);
- 
-    int cmd_pos = -1;
+
+    // Get a single tokenized command, before separated at pipes
+    int cmd_pos = tokenize_string(args, input, 16, BUFLEN);
+    //printf("%d\n", cmd_pos);
+
     int pipe_fd[2];
-    do {
-      // Get a single tokenized command, before separated at pipes
-      cmd_pos = tokenize_string(args, &input[cmd_pos + 1], 16, BUFLEN - cmd_pos);
+    pipe(pipe_fd);
 
-      pipe(pipe_fd);
-
-      if (strcmp(args[0], "quit") == 0) {
-        printf("Bye!!\n");
-        return 0;
-      }
-      else {
-        int rc = fork();
-        if (rc == 0) {
-          execvp(args[0], args);
-        }
-
-        else {
-          wait(NULL);
-
-          // Free memory allocated by tokenize_string()
-          int i = 0;
-          char *cur = args[i];
-          while (cur != NULL) {
-            free(cur);
-            i++;
-            cur = args[++i];
+    if (strcmp(args[0], "quit") == 0) {
+      printf("Bye!!\n");
+      return 0;
+    }
+    else {
+      int rc = fork();
+      if (rc == 0) {
+        if (cmd_pos > 0) {
+          int pipe_rc = fork();
+          if (pipe_rc == 0) {
+            cmd_pos = tokenize_string(args, &input[cmd_pos], 16, BUFLEN - cmd_pos);
+            dup2(pipe_fd[0], STDIN_FILENO);
+            close(pipe_fd[0]);
+            execvp(args[0], args);
+          }
+          else {
+            dup2(pipe_fd[1], STDOUT_FILENO);
+            close(pipe_fd[1]);
+            execvp(args[0], args);
           }
         }
+        else {
+          execvp(args[0], args);
+        }
       }
-    } while(cmd_pos >= 0);
+
+      else {
+        wait(NULL);
+        //close(pipe_fd[0]);
+        //close(pipe_fd[1]);
+
+        // Free memory allocated by tokenize_string()
+        int i = 0;
+        char *cur = args[i];
+        while (cur != NULL) {
+          free(cur);
+          i++;
+          cur = args[++i];
+        }
+      }
+    }
 
     //Remember to free any memory you allocate!
     //free(parsedinput);
