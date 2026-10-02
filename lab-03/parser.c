@@ -1,4 +1,6 @@
 #include "parser.h"
+#include <stdio.h>
+#include <string.h>
 
 //Function to trim whitespace and ASCII control characters from buffer
 //[Input] char* inputbuffer - input string to trim
@@ -19,6 +21,48 @@ size_t trimstring(char* outputbuffer, const char* inputbuffer, size_t bufferlen)
     }
 
     return strlen(outputbuffer);
+}
+
+int tokenize_string(char **out, char* in, size_t out_len, size_t in_len) {
+  int pipe_pos = findpipe(in, in_len);
+  int end_pos = (pipe_pos < 0) ? strlen(in) - 1: pipe_pos;
+
+  char cmd[end_pos + 1];
+  memcpy(cmd, in, end_pos * sizeof(char));
+  cmd[end_pos] = 0;
+
+  //printf("%d\n", end_pos);
+  //printf("%s\n", cmd);
+
+  int i = 0;
+  char* token = strtok(cmd, " \t\n\r");
+  while (token != NULL) {
+    if (i >= out_len) {
+      return -1;
+    }
+
+    out[i] = strdup(token);
+    i++;
+
+    token = strtok(NULL, " \t\n\r");
+  }
+
+  if (i >= out_len) {
+    return -1;
+  }
+  out[i] = NULL;
+
+  int cmd_pos = -1;
+  if (pipe_pos >= 0) {
+    for (int i = pipe_pos; i < in_len; i++) {
+      if (isvalidascii(&in[i], 1)) {
+        cmd_pos = i;
+        break;
+      }
+    }
+  }
+
+  return cmd_pos;
 }
 
 //Function to trim the input command to just be the first word
@@ -59,8 +103,11 @@ bool isvalidascii(const char* inputbuffer, size_t bufferlen)
 //[Input] size_t bufferlen - size of input buffer
 //[Return] int - location in the string of the pipe character, or -1 pipe character not found
 int findpipe(const char* inputbuffer, size_t bufferlen){
-    //TO DO: Implement this function
+  for (int i = 0; i < bufferlen; i++) {
+    if (inputbuffer[i] == '|') {
+      return i;
+    }
+  }
 
-    return -1;
+  return -1;
 }
-

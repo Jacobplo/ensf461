@@ -10,6 +10,7 @@
 //Please feel free to change modify the commands below to suit your needs
 
 size_t trimstring(char* outputbuffer, const char* inputbuffer, size_t bufferlen);
+int tokenize_string(char **out, char* in, size_t out_len, size_t in_len);
 size_t firstword(char* outputbuffer, const char* inputbuffer, size_t bufferlen);
 bool isvalidascii(const char* inputbuffer, size_t bufferlen);
 int findpipe(const char* inputbuffer, size_t bufferlen);

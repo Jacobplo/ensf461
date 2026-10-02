@@ -10,8 +10,13 @@ all: shell.out
 clean:
 	rm -rf *.out *.o
 
+.PHONY: run
+run: shell.out
+	@./shell.out
+
 .PHONY: test
 test: test.out
+	@./test.out
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
