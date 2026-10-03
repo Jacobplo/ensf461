@@ -49,8 +49,6 @@ int main() {
         close(pipe_fd[1]);
       }
       execvp(args[0], args);
-      //perror("execvp");
-      //_exit(127);
     }
 
     int rc2 = -1;
@@ -62,20 +60,20 @@ int main() {
         close(pipe_fd[0]);
         close(pipe_fd[1]);
         execvp(args[0], args);
-        //perror("execvp");
-        //_exit(127);
       }
     }
 
+    close(pipe_fd[0]);
+    close(pipe_fd[1]);
+
     waitpid(rc, NULL, 0);
-    if (rc2 <= 0) waitpid(rc2, NULL, 0);
+    if (rc2 != -1) waitpid(rc2, NULL, 0);
 
     // Free memory allocated by tokenize_string()
     int i = 0;
     char *cur = args[i];
     while (cur != NULL) {
       free(cur);
-      i++;
       cur = args[++i];
     }
 
