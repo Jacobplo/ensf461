@@ -9,17 +9,13 @@
 #define BUFLEN 1024
 #define ARGS_LEN 16
 
-//To Do: This base file has been provided to help you start the lab, you'll need to heavily modify it to implement all of the features
-
 int main() {
-  char buffer[BUFLEN];
-  char* parsedinput;
+  char buffer[BUFLEN] = { 0 };
   char* args[ARGS_LEN] = { 0 };
-  char newline;
 
   printf("Welcome to the GroupXX shell! Enter commands, enter 'quit' to exit\n");
-  do {
-    //Print the terminal prompt and get input
+  while (1) {
+    // Print the terminal prompt and get input
     printf("$ ");
     char *input = fgets(buffer, sizeof(buffer), stdin);
     if(!input) {
@@ -27,20 +23,18 @@ int main() {
       return -1;
     }
 
-    //Clean and parse the input string
-    //parsedinput = (char*) malloc(BUFLEN * sizeof(char));
-    //size_t parselength = trimstring(parsedinput, input, BUFLEN);
-
     // Get a single tokenized command, before separated at pipes
-    int cmd_pos = get_command(args, input, ARGS_LEN, BUFLEN, 0);
+    int cmd_pos = get_command(args, input, ARGS_LEN, BUFLEN, 0); 
+    
+    if (args[0] != NULL) {
+      if (strcmp(args[0], "quit") == 0) {
+        printf("Bye!!\n");
+        return 0;
+      }
+    }
 
     int pipe_fd[2];
     pipe(pipe_fd);
-
-    if (strcmp(args[0], "quit") == 0) {
-      printf("Bye!!\n");
-      return 0;
-    }
 
     int rc = fork();
     if (rc == 0) {
@@ -50,6 +44,8 @@ int main() {
         close(pipe_fd[1]);
       }
       execvp(args[0], args);
+      perror("execvp");
+      _exit(127);
     }
 
     int rc2 = -1;
@@ -61,6 +57,8 @@ int main() {
         close(pipe_fd[0]);
         close(pipe_fd[1]);
         execvp(args[0], args);
+        perror("execvp");
+        _exit(127);
       }
     }
 
@@ -77,10 +75,7 @@ int main() {
       free(cur);
       cur = args[++i];
     }
-
-    //Remember to free any memory you allocate!
-    //free(parsedinput);
-  } while (1);
+  };
 
   return 0;
 }
