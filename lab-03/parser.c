@@ -24,7 +24,10 @@ size_t trimstring(char* outputbuffer, const char* inputbuffer, size_t bufferlen)
 }
 
 int get_command(char **out, char* in, size_t out_len, size_t in_len, size_t start_idx) {
-  char *start = &in[start_idx];
+  char *start = &in[start_idx]; 
+
+  // Convert special characters between quotations into control characters
+  quote_special_to_ctrl(start, in_len - start_idx);
 
   // Get the end position for the current command
   int pipe_pos = findpipe(start, in_len - start_idx);
@@ -33,7 +36,7 @@ int get_command(char **out, char* in, size_t out_len, size_t in_len, size_t star
   // Copy the current command to its own buffer
   char cmd[end_pos + 1];
   memcpy(cmd, start, end_pos * sizeof(char));
-  cmd[end_pos] = 0;
+  cmd[end_pos] = 0; 
 
   // Tokenize the command on whitespace
   int i = 0;
@@ -53,6 +56,12 @@ int get_command(char **out, char* in, size_t out_len, size_t in_len, size_t star
     return -1;
   }
   out[i] = NULL;
+
+  // Convert control characters in tokens back into their special characters
+  for (int j = 0; j < i; j++) {
+    quote_ctrl_to_special(out[j], strlen(out[j]));
+  }
+
 
   // Get the position of the next command, if there is a pipe
   int cmd_pos = -1;
