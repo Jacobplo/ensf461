@@ -36,7 +36,10 @@ int main() {
     int pipe_fd[2];
     pipe(pipe_fd);
 
-    int rc = fork();
+    int rc = -1;
+    if (args[0] != NULL) {
+      rc = fork();
+    }
     if (rc == 0) {
       if (cmd_pos > 0) {
         dup2(pipe_fd[1], STDOUT_FILENO);
@@ -65,7 +68,7 @@ int main() {
     close(pipe_fd[0]);
     close(pipe_fd[1]);
 
-    waitpid(rc, NULL, 0);
+    if (rc != -1) waitpid(rc, NULL, 0);
     if (rc2 != -1) waitpid(rc2, NULL, 0);
 
     // Free memory allocated by get_command()
