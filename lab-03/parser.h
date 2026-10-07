@@ -1,5 +1,6 @@
 #ifndef __PARSER_H
 #define __PARSER_H
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -17,6 +18,7 @@ size_t firstword(char* outputbuffer, const char* inputbuffer, size_t bufferlen);
 bool isvalidascii(const char* inputbuffer, size_t bufferlen);
 
 int get_command(char **out, char* in, size_t out_len, size_t in_len, size_t start_idx);
+int get_command_path(char *out, const char *cmd, size_t out_len);
 void quote_special_to_ctrl(char* in, size_t in_len);
 void quote_ctrl_to_special(char* in, size_t in_len);
 int findpipe(const char* inputbuffer, size_t bufferlen);

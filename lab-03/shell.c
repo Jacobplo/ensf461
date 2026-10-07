@@ -9,15 +9,19 @@
 #define BUFLEN 1024
 #define ARGS_LEN 16
 
+extern char **environ;
+
 int main() {
-  char buffer[BUFLEN] = { 0 };
-  char* args[ARGS_LEN] = { 0 };
+  char input_buf[BUFLEN] = { 0 };
+  char full_path[BUFLEN];
+  char *args[ARGS_LEN] = { 0 };
+  int ret;
 
   printf("Welcome to the GroupXX shell! Enter commands, enter 'quit' to exit\n");
   while (1) {
     // Print the terminal prompt and get input
     printf("$ ");
-    char *input = fgets(buffer, sizeof(buffer), stdin);
+    char *input = fgets(input_buf, sizeof(input_buf), stdin);
     if(!input) {
       fprintf(stderr, "Error reading input\n");
       return -1;
@@ -25,42 +29,66 @@ int main() {
 
     // Get a single tokenized command, before separated at pipes
     int cmd_pos = get_command(args, input, ARGS_LEN, BUFLEN, 0); 
-    
-    if (args[0] != NULL) {
-      if (strcmp(args[0], "quit") == 0) {
-        printf("Bye!!\n");
-        return 0;
-      }
+    if (args[0] == NULL) continue;
+
+    if (strcmp(args[0], "quit") == 0) {
+      printf("Bye!!\n");
+      return 0;
     }
+
+    ret = get_command_path(full_path, args[0], BUFLEN); 
+    if (ret < 0) {
+      printf("shell: Unknown command: %s\n", full_path);
+      continue;
+    }
+
+    free(args[0]);
+    args[0] = strdup(full_path);
 
     int pipe_fd[2];
     pipe(pipe_fd);
 
-    int rc = -1;
-    if (args[0] != NULL) {
-      rc = fork();
+    int rc = fork();
+    if (rc < 0) {
+      perror("fork");
+      _exit(127);
     }
-    if (rc == 0) {
+    else if (rc == 0) {
       if (cmd_pos > 0) {
         dup2(pipe_fd[1], STDOUT_FILENO);
         close(pipe_fd[0]);
         close(pipe_fd[1]);
       }
-      execvp(args[0], args);
-      perror("execvp");
+      execve(args[0], args, environ);
+      perror("execve");
       _exit(127);
     }
 
     int rc2 = -1;
     if (cmd_pos > 0) {
       rc2 = fork();
-      if (rc2 == 0) {
+      if (rc2 < 0) {
+        perror("fork");
+        _exit(127);
+      }
+      else if (rc2 == 0) {
         cmd_pos = get_command(args, input, ARGS_LEN, BUFLEN, cmd_pos);
+        if (args[0] == NULL) continue;
+
+        ret = get_command_path(full_path, args[0], BUFLEN); 
+        if (ret < 0) {
+          printf("shell: Unknown command: %s\n", full_path);
+          continue;
+        }
+
+        free(args[0]);
+        args[0] = strdup(full_path);
+
         dup2(pipe_fd[0], STDIN_FILENO);
         close(pipe_fd[0]);
         close(pipe_fd[1]);
-        execvp(args[0], args);
-        perror("execvp");
+        execve(args[0], args, environ);
+        perror("execve");
         _exit(127);
       }
     }
@@ -68,7 +96,7 @@ int main() {
     close(pipe_fd[0]);
     close(pipe_fd[1]);
 
-    if (rc != -1) waitpid(rc, NULL, 0);
+    waitpid(rc, NULL, 0);
     if (rc2 != -1) waitpid(rc2, NULL, 0);
 
     // Free memory allocated by get_command()

@@ -1,6 +1,8 @@
 #include "parser.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 //Function to trim whitespace and ASCII control characters from buffer
 //[Input] char* inputbuffer - input string to trim
@@ -124,6 +126,56 @@ int findpipe(const char* inputbuffer, size_t bufferlen){
   return -1;
 }
 
+int get_command_path(char *out, const char *cmd, size_t out_len) {
+  if (out == NULL || cmd == NULL) return -1;
+  if (strlen(cmd) >= out_len) return -1;
+
+  // Default for error message
+  strcpy(out, cmd);
+
+  if (cmd[0] == '/') {
+    strcpy(out, cmd);
+    return 0;
+  }
+
+  int ret = -1;
+  char *full_path = NULL;
+
+  const char *path = getenv("PATH");
+  if (path == NULL) return -1;
+
+  char *path_copy = strdup(path);
+  if (path_copy == NULL) return -1;
+
+  char *token = strtok(path_copy, ":");
+  while (token != NULL) {
+    size_t full_path_len = strlen(token) + strlen(cmd) + 1;
+
+    char *full_path = malloc(full_path_len + 1);
+    if (full_path == NULL) break;
+
+    snprintf(full_path, full_path_len + 1, "%s/%s", token, cmd);
+
+    if (access(full_path, F_OK) == 0) {
+      if (full_path_len < out_len) {
+        strcpy(out, full_path);
+        ret = 0;
+      }
+
+      free(full_path);
+      break;
+    }
+
+    free(full_path);
+
+    token = strtok(NULL, ":");
+  }
+
+  free(path_copy);
+
+  return ret;
+}
+
 void quote_special_to_ctrl(char* in, size_t in_len) {
   bool in_quotes = false;
 
@@ -165,4 +217,3 @@ void quote_ctrl_to_special(char* in, size_t in_len) {
     }
   }
 }
-
