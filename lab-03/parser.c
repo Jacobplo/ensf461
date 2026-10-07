@@ -23,12 +23,14 @@ size_t trimstring(char* outputbuffer, const char* inputbuffer, size_t bufferlen)
     return strlen(outputbuffer);
 }
 
-int tokenize_string(char **out, char* in, size_t out_len, size_t in_len) {
-  int pipe_pos = findpipe(in, in_len);
-  int end_pos = (pipe_pos < 0) ? strlen(in) - 1: pipe_pos;
+int get_command(char **out, char* in, size_t out_len, size_t in_len, size_t start_idx) {
+  char *start = &in[start_idx];
+
+  int pipe_pos = findpipe(start, in_len - start_idx);
+  int end_pos = (pipe_pos < 0) ? strlen(start) - 1 : pipe_pos;
 
   char cmd[end_pos + 1];
-  memcpy(cmd, in, end_pos * sizeof(char));
+  memcpy(cmd, start, end_pos * sizeof(char));
   cmd[end_pos] = 0;
 
   //printf("%d\n", end_pos);
@@ -54,8 +56,8 @@ int tokenize_string(char **out, char* in, size_t out_len, size_t in_len) {
 
   int cmd_pos = -1;
   if (pipe_pos >= 0) {
-    for (int i = pipe_pos + 1; i < in_len; i++) {
-      if (in[i] != ' ') {
+    for (int i = pipe_pos + 1; i < in_len - start_idx; i++) {
+      if (start[i] != ' ') {
         cmd_pos = i;
         break;
       }

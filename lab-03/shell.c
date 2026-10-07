@@ -31,7 +31,7 @@ int main() {
     //size_t parselength = trimstring(parsedinput, input, BUFLEN);
 
     // Get a single tokenized command, before separated at pipes
-    int cmd_pos = tokenize_string(args, input, 16, BUFLEN);
+    int cmd_pos = get_command(args, input, 16, BUFLEN, 0);
 
     int pipe_fd[2];
     pipe(pipe_fd);
@@ -55,7 +55,7 @@ int main() {
     if (cmd_pos > 0) {
       rc2 = fork();
       if (rc2 == 0) {
-        cmd_pos = tokenize_string(args, &input[cmd_pos], 16, BUFLEN - cmd_pos);
+        cmd_pos = get_command(args, input, 16, BUFLEN, cmd_pos);
         dup2(pipe_fd[0], STDIN_FILENO);
         close(pipe_fd[0]);
         close(pipe_fd[1]);
@@ -69,7 +69,7 @@ int main() {
     waitpid(rc, NULL, 0);
     if (rc2 != -1) waitpid(rc2, NULL, 0);
 
-    // Free memory allocated by tokenize_string()
+    // Free memory allocated by get_command()
     int i = 0;
     char *cur = args[i];
     while (cur != NULL) {
