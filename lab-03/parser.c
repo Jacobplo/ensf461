@@ -26,16 +26,16 @@ size_t trimstring(char* outputbuffer, const char* inputbuffer, size_t bufferlen)
 int get_command(char **out, char* in, size_t out_len, size_t in_len, size_t start_idx) {
   char *start = &in[start_idx];
 
+  // Get the end position for the current command
   int pipe_pos = findpipe(start, in_len - start_idx);
   int end_pos = (pipe_pos < 0) ? strlen(start) - 1 : pipe_pos;
 
+  // Copy the current command to its own buffer
   char cmd[end_pos + 1];
   memcpy(cmd, start, end_pos * sizeof(char));
   cmd[end_pos] = 0;
 
-  //printf("%d\n", end_pos);
-  //printf("%s\n", cmd);
-
+  // Tokenize the command on whitespace
   int i = 0;
   char* token = strtok(cmd, " \t\n\r\"");
   while (token != NULL) {
@@ -54,6 +54,7 @@ int get_command(char **out, char* in, size_t out_len, size_t in_len, size_t star
   }
   out[i] = NULL;
 
+  // Get the position of the next command, if there is a pipe
   int cmd_pos = -1;
   if (pipe_pos >= 0) {
     for (int i = pipe_pos + 1; i < in_len - start_idx; i++) {
@@ -112,4 +113,46 @@ int findpipe(const char* inputbuffer, size_t bufferlen){
   }
 
   return -1;
+}
+
+void quote_special_to_ctrl(char* in, size_t in_len) {
+  bool in_quotes = false;
+
+  for (int i = 0; i < in_len; i++) {
+    if (in[i] == '"') {
+      in_quotes = !in_quotes;
+    }
+
+    if (in_quotes) {
+      switch (in[i]) {
+        case ' ':
+          in[i] = CTRL_SPACE;
+          break;
+
+        case '|':
+          in[i] = CTRL_PIPE;
+          break;
+
+        default:
+          break;
+      }
+    }
+  }
+}
+
+void quote_ctrl_to_special(char* in, size_t in_len) {
+  for (int i = 0; i < in_len; i++) {
+    switch (in[i]) {
+      case CTRL_SPACE:
+        in[i] = ' ';
+        break;
+
+      case CTRL_PIPE:
+        in[i] = '|';
+        break;
+
+      default:
+        break;
+    }
+  }
 }
