@@ -85,6 +85,11 @@ void read_job_config(const char* filename)
 
     fclose(fp);
     if (line) free(line);
+
+    if (numofjobs == 0) {
+        fprintf(stderr, "Error: the job file is empty.\n");
+        exit(EXIT_FAILURE);
+    }
 }
 
 
@@ -142,6 +147,26 @@ void policy_LT(int slice)
 
 void policy_FIFO(){
     printf("Execution trace with FIFO:\n");
+    int now = 0;
+    int done = 0;
+
+    while (done < numofjobs) {
+        struct job *best = NULL;
+        // FIFO runs the earliest-arriving unfinished job to completion.
+        for (struct job *j = head; j != NULL; j = j->next) {
+            if (j->remaining <= 0)
+                continue;
+            if (best == NULL || j->arrival < best->arrival ||
+                (j->arrival == best->arrival && j->id < best->id))
+                best = j;
+        }
+        if (now < best->arrival)
+            now = best->arrival;  // CPU was idle.
+        int duration = best->remaining;
+        run_segment(best, now, duration);
+        now += duration;
+        done++;
+    }
 
     // TODO: implement FIFO policy
 
