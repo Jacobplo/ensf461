@@ -83,7 +83,6 @@ int get_command_path(char *out, const char *cmd, size_t out_len) {
   }
 
   int ret = -1;
-  char *full_path = NULL;
 
   const char *path = getenv("PATH");
   if (path == NULL) return -1;

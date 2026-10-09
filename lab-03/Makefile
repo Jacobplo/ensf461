@@ -14,15 +14,8 @@ clean:
 run: shell.out
 	@./shell.out
 
-.PHONY: test
-test: test.out
-	@./test.out
-
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 shell.out: shell.o parser.o
-	$(CC) -o $@ $^
-
-test.out: test.o parser.o
 	$(CC) -o $@ $^
