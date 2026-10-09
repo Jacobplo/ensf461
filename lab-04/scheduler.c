@@ -32,9 +32,11 @@ struct job *head = NULL;
 
 void append_to(struct job **head_pointer, int arrival, int length, int tickets){
     struct job *cur = *head_pointer;
+    struct job *prev = NULL;
 
     int id = 0;
     while (cur != NULL) {
+        prev = cur;
         cur = cur->next;
         id++;
     }
@@ -51,6 +53,13 @@ void append_to(struct job **head_pointer, int arrival, int length, int tickets){
     cur->completion_time = -1;
     cur->last_ran = -1;
     cur->wait_time = 0;
+
+    if (prev != NULL) {
+        prev->next = cur;
+    }
+    else {
+        *head_pointer = cur;
+    }
 }
 
 
@@ -103,7 +112,9 @@ void policy_STCF()
 {
     printf("Execution trace with STCF:\n");
 
-    // TODO: implement STCF policy
+    for (struct job *cur = head; cur != NULL; cur = cur->next) {
+        printf("hi");
+    }
 
     printf("End of execution with STCF.\n");
 }
@@ -192,6 +203,7 @@ int main(int argc, char **argv){
     }
     else if (strcmp(pname, "STCF") == 0)
     {
+        policy_STCF();
         // TODO
     }
     else if (strcmp(pname, "RR") == 0)
