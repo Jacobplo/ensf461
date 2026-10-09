@@ -82,7 +82,6 @@ int get_command_path(char *out, const char *cmd, size_t out_len) {
 
   // Don't do anything if the command is already fully-qualified
   if (cmd[0] == '/') {
-    strcpy(out, cmd);
     return 0;
   }
 
@@ -102,11 +101,9 @@ int get_command_path(char *out, const char *cmd, size_t out_len) {
   while (token != NULL) {
     size_t full_path_len = strlen(token) + strlen(cmd) + 1;
 
-    char *full_path = malloc(full_path_len + 1);
-    if (full_path == NULL) break;
-
+    char *full_path;
     // Construct the full path for a given PATH directory
-    snprintf(full_path, full_path_len + 1, "%s/%s", token, cmd);
+    asprintf(&full_path, "%s/%s", token, cmd);
 
     // Check if the command is found
     if (access(full_path, F_OK) == 0) {
