@@ -80,9 +80,12 @@ int get_command_path(char *out, const char *cmd, size_t out_len) {
   // Default for error message
   strcpy(out, cmd);
 
-  // Don't do anything if the command is already fully-qualified
-  if (cmd[0] == '/') {
-    return 0;
+  // If the command contains '/' then use it as an absolute or relative path
+  for(int i=0; cmd[i] !='\0'; i++){
+    if (cmd[i] == '/') {
+      strcpy(out, cmd);
+      return 0;
+    }
   }
 
   int ret = -1;
@@ -90,23 +93,21 @@ int get_command_path(char *out, const char *cmd, size_t out_len) {
   const char *path = getenv("PATH");
   if (path == NULL) return -1;
 
-  char *cwd = getcwd(NULL, 0);
-
-  // Prepend current working directory to PATH
-  char *new_path;
-  asprintf(&new_path, "%s:%s", cwd, path);
+  char *path_copy = strdup(path);
+  if (path_copy == NULL) return -1;
 
   // Tokenize path on directory delimiters
-  char *token = strtok(new_path, ":");
+  char *token = strtok(path_copy, ":");
   while (token != NULL) {
     size_t full_path_len = strlen(token) + strlen(cmd) + 1;
 
-    char *full_path;
+    char *full_path = malloc(full_path_len + 1);
+    if(full_path == NULL) break;
     // Construct the full path for a given PATH directory
-    asprintf(&full_path, "%s/%s", token, cmd);
+    snprintf(full_path, full_path_len + 1, "%s/%s", token, cmd);
 
     // Check if the command is found
-    if (access(full_path, F_OK) == 0) {
+    if (access(full_path, X_OK) == 0) {
       if (full_path_len < out_len) {
         strcpy(out, full_path);
         ret = 0;
@@ -121,7 +122,7 @@ int get_command_path(char *out, const char *cmd, size_t out_len) {
     token = strtok(NULL, ":");
   }
 
-  free(new_path);
+  free(path_copy);
 
   return ret;
 }
