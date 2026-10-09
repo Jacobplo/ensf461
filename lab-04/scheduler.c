@@ -19,6 +19,8 @@ struct job {
     int time_ran; // Accumulated time it has ran for 
     int start_time; // The time the job is first scheduled
     int completion_time; // The time the job is completed
+    int last_ran; // The time the job was last ran.
+    int wait_time; // Accumulated wait time.
     int tickets; // number of tickets for lottery scheduling
     // TODO: add any other metadata you need to track here
     struct job *next;
@@ -44,6 +46,11 @@ void append_to(struct job **head_pointer, int arrival, int length, int tickets){
     cur->time_ran = 0;
     cur->tickets = tickets;
     cur->next = NULL;
+
+    cur->start_time = -1;
+    cur->completion_time = -1;
+    cur->last_ran = -1;
+    cur->wait_time = 0;
 }
 
 
