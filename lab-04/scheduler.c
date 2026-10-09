@@ -16,6 +16,7 @@ struct job {
     int id;
     int arrival; // arrival time; safely assume the time unit has the minimal increment of 1
     int length;
+    int time_ran;
     int tickets; // number of tickets for lottery scheduling
     // TODO: add any other metadata you need to track here
     struct job *next;
@@ -26,9 +27,21 @@ struct job *head = NULL;
 
 
 void append_to(struct job **head_pointer, int arrival, int length, int tickets){
+    struct job *cur = *head_pointer;
 
-    // TODO: create a new job and init it with proper data
-    return;
+    int id = 0;
+    while (cur != NULL) {
+        cur = cur->next;
+        id++;
+    }
+
+    cur = malloc(sizeof(struct job));
+    cur->id = id;
+    cur->arrival = arrival;
+    cur->length = length;
+    cur->time_ran = 0;
+    cur->tickets = tickets;
+    cur->next = NULL;
 }
 
 
