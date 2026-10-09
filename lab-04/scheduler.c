@@ -16,7 +16,9 @@ struct job {
     int id;
     int arrival; // arrival time; safely assume the time unit has the minimal increment of 1
     int length;
-    int time_ran;
+    int time_ran; // Accumulated time it has ran for 
+    int start_time; // The time the job is first scheduled
+    int completion_time; // The time the job is completed
     int tickets; // number of tickets for lottery scheduling
     // TODO: add any other metadata you need to track here
     struct job *next;
