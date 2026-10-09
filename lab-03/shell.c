@@ -34,7 +34,7 @@ int main() {
     }
 
     // Get a single tokenized command, before separated at pipes
-    int cmd_pos = get_command(args, input, ARGS_LEN, BUFLEN, 0); 
+    int cmd_pos = get_command(args, input, ARGS_LEN, strlen(input), 0); 
     if (args[0] == NULL) continue;
 
     // Exit shell if requested
@@ -46,7 +46,7 @@ int main() {
     // Get the fully-qualified path of the command
     ret = get_command_path(full_path, args[0], BUFLEN); 
     if (ret < 0) {
-      printf("shell: Unknown command: %s\n", full_path);
+      fprintf(stderr, "shell: Unknown command: %s\n", full_path);
       goto cleanup;
     }
 
@@ -109,16 +109,16 @@ int main() {
       }
       else if (rc2 == 0) {
         // Get the command
-        cmd_pos = get_command(args, input, ARGS_LEN, BUFLEN, cmd_pos);
+        cmd_pos = get_command(args, input, ARGS_LEN, strlen(input), cmd_pos);
         if (args[0] == NULL) {
-          printf("shell: Unknown command");
+          fprintf(stderr, "shell: Unknown command");
           _exit(127);
         };
 
         // Get the command path
         ret = get_command_path(full_path, args[0], BUFLEN); 
         if (ret < 0) {
-          printf("shell: Unknown command: %s\n", full_path);
+          fprintf(stderr, "shell: Unknown command: %s\n", full_path);
           _exit(127);
         }
 
