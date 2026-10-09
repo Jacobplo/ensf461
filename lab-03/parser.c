@@ -26,6 +26,8 @@ int get_command(char **out, char* in, size_t out_len, size_t in_len, size_t star
   char* token = strtok(cmd, " \t\n\r\"");
   while (token != NULL) {
     if (i >= out_len) {
+      free(out[i - 1]);
+      out[i - 1] = NULL;
       return -1;
     }
 
@@ -36,6 +38,8 @@ int get_command(char **out, char* in, size_t out_len, size_t in_len, size_t star
   }
 
   if (i >= out_len) {
+    free(out[i - 1]);
+    out[i - 1] = NULL;
     return -1;
   }
   out[i] = NULL;

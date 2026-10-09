@@ -43,7 +43,7 @@ int main() {
     ret = get_command_path(full_path, args[0], BUFLEN); 
     if (ret < 0) {
       printf("shell: Unknown command: %s\n", full_path);
-      continue;
+      goto cleanup;
     }
 
     free(args[0]);
@@ -52,22 +52,44 @@ int main() {
     // Create a kernel pipe if the command contains a pipe
     int pipe_fd[2];
     if (cmd_pos >= 0) { 
-      pipe(pipe_fd);
+      ret = pipe(pipe_fd);
+
+      if (ret < 0) {
+        perror("pipe");
+        goto cleanup;
+      }
     } 
 
     // Fork and execute the new command
     int rc = fork();
     if (rc < 0) {
       perror("fork");
-      _exit(127);
+      goto cleanup;
     }
     else if (rc == 0) {
       // Write the the pipe, if applicable
       if (cmd_pos > 0) {
-        dup2(pipe_fd[1], STDOUT_FILENO);
-        close(pipe_fd[0]);
-        close(pipe_fd[1]);
+        ret = dup2(pipe_fd[1], STDOUT_FILENO);
+        if (ret < 0) {
+          perror("dup2");
+          _exit(127);
+        }
+
+        // Close pipes
+        ret = close(pipe_fd[0]);
+        if (ret < 0) {
+          perror("close");
+          _exit(127);
+        }
+
+        ret = close(pipe_fd[1]);
+        if (ret < 0) {
+          perror("close");
+          _exit(127);
+        }
       }
+
+      // Execute command
       execve(args[0], args, environ);
       perror("execve");
       _exit(127);
@@ -84,7 +106,10 @@ int main() {
       else if (rc2 == 0) {
         // Get the command
         cmd_pos = get_command(args, input, ARGS_LEN, BUFLEN, cmd_pos);
-        if (args[0] == NULL) continue;
+        if (args[0] == NULL) {
+          printf("shell: Unknown command");
+          _exit(127);
+        };
 
         // Get the command path
         ret = get_command_path(full_path, args[0], BUFLEN); 
@@ -97,10 +122,26 @@ int main() {
         args[0] = strdup(full_path);
 
         // Receive from the pipe
-        dup2(pipe_fd[0], STDIN_FILENO);
-        close(pipe_fd[0]);
-        close(pipe_fd[1]);
+        ret = dup2(pipe_fd[0], STDIN_FILENO);
+        if (ret < 0) {
+          perror("dup2");
+          _exit(127);
+        }
 
+        // Close pipes
+        ret = close(pipe_fd[0]);
+        if (ret < 0) {
+          perror("close");
+          _exit(127);
+        }
+
+        ret = close(pipe_fd[1]);
+        if (ret < 0) {
+          perror("close");
+          _exit(127);
+        }
+
+        // Execute command
         execve(args[0], args, environ);
         perror("execve");
         _exit(127);
@@ -108,15 +149,34 @@ int main() {
     }
 
     // Close pipes, if applicable
+    // Errors cannot be fully handled because we must wait for the child
+    // processes to end (or error) before continuing
     if (cmd_pos >= 0) {
-      close(pipe_fd[0]);
-      close(pipe_fd[1]);
+      ret = close(pipe_fd[0]);
+      if (ret < 0) {
+        perror("close");
+      }
+
+      ret = close(pipe_fd[1]);
+      if (ret < 0) {
+        perror("close");
+      }
     }
    
     // Wait on child processes
-    waitpid(rc, NULL, 0);
-    if (rc2 != -1) waitpid(rc2, NULL, 0);
+    ret = waitpid(rc, NULL, 0);
+    if (ret < 0) {
+      perror("wait");
+    }
 
+    if (rc2 != -1) {
+      ret = waitpid(rc2, NULL, 0);
+      if (ret < 0) {
+        perror("wait");
+      }
+    }
+
+cleanup:
     // Free memory allocated by get_command()
     int i = 0;
     char *cur = args[i];
