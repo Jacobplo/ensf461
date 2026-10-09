@@ -19,6 +19,10 @@ int main() {
   char *args[ARGS_LEN] = { 0 };
   int ret;
 
+  // Cleanup variables. Must be declared before the label.
+  int i = -1;
+  char *cur = NULL;
+
   printf("Welcome to the GroupXX shell! Enter commands, enter 'quit' to exit\n");
   while (1) {
     // Print the terminal prompt and get input
@@ -178,8 +182,8 @@ int main() {
 
 cleanup:
     // Free memory allocated by get_command()
-    int i = 0;
-    char *cur = args[i];
+    i = 0;
+    cur = args[i];
     while (cur != NULL) {
       free(cur);
       cur = args[++i];
