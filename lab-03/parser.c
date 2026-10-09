@@ -91,12 +91,14 @@ int get_command_path(char *out, const char *cmd, size_t out_len) {
   const char *path = getenv("PATH");
   if (path == NULL) return -1;
 
-  // Make a local copy of PATH so that it is not modified
-  char *path_copy = strdup(path);
-  if (path_copy == NULL) return -1;
+  char *cwd = getcwd(NULL, 0);
+
+  // Prepend current working directory to PATH
+  char *new_path;
+  asprintf(&new_path, "%s:%s", cwd, path);
 
   // Tokenize path on directory delimiters
-  char *token = strtok(path_copy, ":");
+  char *token = strtok(new_path, ":");
   while (token != NULL) {
     size_t full_path_len = strlen(token) + strlen(cmd) + 1;
 
@@ -122,7 +124,7 @@ int get_command_path(char *out, const char *cmd, size_t out_len) {
     token = strtok(NULL, ":");
   }
 
-  free(path_copy);
+  free(new_path);
 
   return ret;
 }
