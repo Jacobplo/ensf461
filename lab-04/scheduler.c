@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -21,13 +22,32 @@ struct job {
     int completion_time; // The time the job is completed
     int last_ran; // The time the job was last ran.
     int wait_time; // Accumulated wait time.
-    int tickets; // number of tickets for lottery scheduling
+    int tickets; // number of tickets for lottery scheduling 
     // TODO: add any other metadata you need to track here
     struct job *next;
+
+    // Used to track current statistics for the tests. Reset after printing.
+    int current_time_ran;
+    int current_start_time;
 };
 
 // the workload list
 struct job *head = NULL;
+
+/**
+ * Find a job that can be run and has not been completed
+ */
+int get_job(struct job **job, int time);
+
+/**
+ * Update the state of a job based on the current time, and return time - 1
+ */
+int cpu_tick(struct job *job, int time);
+
+/**
+ * Checks if all jobs have been completed
+ */
+bool check_done();
 
 
 void append_to(struct job **head_pointer, int arrival, int length, int tickets){
@@ -53,6 +73,9 @@ void append_to(struct job **head_pointer, int arrival, int length, int tickets){
     cur->completion_time = -1;
     cur->last_ran = -1;
     cur->wait_time = 0;
+
+    cur->current_time_ran = 0;
+    cur->current_start_time = -1;
 
     if (prev != NULL) {
         prev->next = cur;
@@ -117,9 +140,51 @@ void policy_STCF()
 {
     printf("Execution trace with STCF:\n");
 
-    for (struct job *cur = head; cur != NULL; cur = cur->next) {
-        printf("hi");
+    struct job *cur_job;
+
+    struct job *prev_job = NULL;
+
+    int t = 0; 
+
+    while (1) { 
+        // Get a valid (but not necessarily best) job
+        while (get_job(&cur_job, t) < 0) {
+            t++;
+        } 
+
+        // Get the next job
+        for (struct job *job = head; job != NULL; job = job->next) {
+            if (job->arrival > t) continue;
+            else if (job->completion_time >= 0) continue;
+
+            int time_left = job->length - job->time_ran;
+
+            if (time_left < (cur_job->length - cur_job->time_ran)) {
+                cur_job = job;
+            }
+        }
+
+        if (prev_job == cur_job) {
+            prev_job->current_time_ran++;
+        }
+        else {
+            if (prev_job != NULL) {
+                printf("t=%d: [Job %d] arrived at [%d], ran for: [%d]\n", prev_job->current_start_time, prev_job->id, prev_job->arrival, prev_job->current_time_ran);
+                prev_job->current_time_ran = 0;
+            }
+
+            cur_job->current_time_ran = 1;
+            cur_job->current_start_time = t;
+        }
+
+        t = cpu_tick(cur_job, t);
+
+        if (check_done()) break;
+
+        prev_job = cur_job;
     }
+
+    printf("t=%d: [Job %d] arrived at [%d], ran for: [%d]\n", cur_job->current_start_time, cur_job->id, cur_job->arrival, cur_job->current_time_ran);
 
     printf("End of execution with STCF.\n");
 }
@@ -241,4 +306,56 @@ int main(int argc, char **argv){
     }
 
 	exit(0);
+}
+
+int get_job(struct job **job, int time) {
+    *job = NULL;
+
+    int t = 0;
+    while (*job == NULL) {
+        for (struct job *cur = head; cur != NULL; cur = cur->next) {
+            if (cur->arrival <= t && cur->completion_time < 0) {
+                *job = cur;
+                return 0;
+            }
+        }
+
+        t++;
+
+        if (t > time) break;
+    }
+
+    return -1;
+}
+
+int cpu_tick(struct job *job, int time) {
+    time++;
+
+    if (job->start_time < 0) {
+        job->start_time = time;
+    }
+
+    job->time_ran++;
+
+    if (job->last_ran >= 0) {
+        job->wait_time += time - job->last_ran;
+    }
+
+    job->last_ran = time; 
+
+    if (job->time_ran == job->length) {
+        job->completion_time = time;
+    }
+
+    return time;
+}
+
+bool check_done() {
+    for (struct job *cur = head; cur != NULL; cur = cur->next) {
+        if (cur->completion_time < 0) {
+            return false;
+        }
+    }
+
+    return true;
 }
