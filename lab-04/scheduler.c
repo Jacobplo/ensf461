@@ -45,6 +45,16 @@ int get_job(struct job **job, int time);
 int cpu_tick(struct job *job, int time);
 
 /**
+ * Prints a formatted line expected in the tests.
+ */
+void print_status(struct job *job);
+
+/**
+ * Prints formatted lines expected in the analysis tests.
+ */
+void print_analysis();
+
+/**
  * Checks if all jobs have been completed
  */
 bool check_done();
@@ -83,6 +93,8 @@ void append_to(struct job **head_pointer, int arrival, int length, int tickets){
     else {
         *head_pointer = cur;
     }
+
+    numofjobs++;
 }
 
 
@@ -169,7 +181,7 @@ void policy_STCF()
         }
         else {
             if (prev_job != NULL) {
-                printf("t=%d: [Job %d] arrived at [%d], ran for: [%d]\n", prev_job->current_start_time, prev_job->id, prev_job->arrival, prev_job->current_time_ran);
+                print_status(prev_job);
                 prev_job->current_time_ran = 0;
             }
 
@@ -184,7 +196,7 @@ void policy_STCF()
         prev_job = cur_job;
     }
 
-    printf("t=%d: [Job %d] arrived at [%d], ran for: [%d]\n", cur_job->current_start_time, cur_job->id, cur_job->arrival, cur_job->current_time_ran);
+    print_status(cur_job);
 
     printf("End of execution with STCF.\n");
 }
@@ -294,7 +306,14 @@ int main(int argc, char **argv){
     else if (strcmp(pname, "STCF") == 0)
     {
         policy_STCF();
-        // TODO
+
+        if (analysis == 1) {
+            printf("Begin analyzing STCF:\n");
+
+            print_analysis();
+
+            printf("End analyzing STCF.\n");
+        } 
     }
     else if (strcmp(pname, "RR") == 0)
     {
@@ -329,8 +348,6 @@ int get_job(struct job **job, int time) {
 }
 
 int cpu_tick(struct job *job, int time) {
-    time++;
-
     if (job->start_time < 0) {
         job->start_time = time;
     }
@@ -338,16 +355,19 @@ int cpu_tick(struct job *job, int time) {
     job->time_ran++;
 
     if (job->last_ran >= 0) {
-        job->wait_time += time - job->last_ran;
+        job->wait_time += time - job->last_ran - 1;
+    }
+    else {
+        job->wait_time = time - job->arrival;
     }
 
     job->last_ran = time; 
 
     if (job->time_ran == job->length) {
-        job->completion_time = time;
+        job->completion_time = time + 1;
     }
 
-    return time;
+    return time + 1;
 }
 
 bool check_done() {
@@ -358,4 +378,32 @@ bool check_done() {
     }
 
     return true;
+}
+
+void print_status(struct job *job) {
+    printf("t=%d: [Job %d] arrived at [%d], ran for: [%d]\n", job->current_start_time, job->id, job->arrival, job->current_time_ran);
+}
+
+void print_analysis() {
+    int total_response = 0;
+    int total_turnaround = 0;
+    int total_wait = 0;
+
+    for (struct job* cur = head; cur != NULL; cur = cur->next) {
+        int response = cur->start_time - cur->arrival;
+        int turnaround = cur->completion_time - cur->arrival;
+        int wait = cur->wait_time;
+
+        printf("Job %d -- Response time: %d  Turnaround: %d  Wait: %d\n", cur->id, response, turnaround, wait);
+
+        total_response += response;
+        total_turnaround += turnaround;
+        total_wait += wait;
+    }
+
+    float average_response = (float)total_response / numofjobs;
+    float average_turnaround = (float)total_turnaround / numofjobs;
+    float average_wait = (float)total_wait / numofjobs;
+
+    printf("Average -- Response: %.2f  Turnaround %.2f  Wait %.2f\n", average_response, average_turnaround, average_wait);
 }
