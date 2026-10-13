@@ -29,6 +29,9 @@ struct job {
     // Used to track current statistics for the tests. Reset after printing.
     int current_time_ran;
     int current_start_time;
+
+    // Used for round-robin queue
+    struct job *rr_next;
 };
 
 // the workload list
@@ -42,7 +45,7 @@ int get_job(struct job **job, int time);
 /**
  * Update the state of a job based on the current time, and return time - 1
  */
-int cpu_tick(struct job *job, int time);
+int cpu_tick(struct job *job, int time, int count);
 
 /**
  * Prints a formatted line expected in the tests.
@@ -58,6 +61,21 @@ void print_analysis();
  * Checks if all jobs have been completed
  */
 bool check_done();
+
+/**
+ * Enqueues a job to a job queue
+ */
+void enqueue(struct job **head_pointer, struct job *job);
+
+/**
+ * Dequeues a job from a job queue
+ */
+struct job *dequeue(struct job **head_pointer);
+
+/**
+ * Determines if a job is in a job queue or not
+ */
+bool job_in_queue(struct job **head_pointer, struct job *job);
 
 
 void append_to(struct job **head_pointer, int arrival, int length, int tickets){
@@ -86,6 +104,8 @@ void append_to(struct job **head_pointer, int arrival, int length, int tickets){
 
     cur->current_time_ran = 0;
     cur->current_start_time = -1;
+
+    cur->rr_next = NULL;
 
     if (prev != NULL) {
         prev->next = cur;
@@ -189,7 +209,7 @@ void policy_STCF()
             cur_job->current_start_time = t;
         }
 
-        t = cpu_tick(cur_job, t);
+        t = cpu_tick(cur_job, t, 1);
 
         if (check_done()) break;
 
@@ -206,7 +226,75 @@ void policy_RR(int slice)
 {
     printf("Execution trace with RR:\n");
 
-    // TODO: implement RR policy
+    struct job *cur_job;
+    struct job *prev_job = NULL;
+    struct job *rr_head = NULL;
+
+    int t = 0; 
+
+    // Get the first valid job
+    while (get_job(&cur_job, t) < 0) {
+        t++;
+    }
+
+    while (1) {
+        // Enqueue available jobs
+        for (struct job *job = head; job != NULL; job = job->next) {
+            if (job->arrival > t) continue;
+            else if (job->completion_time >= 0) continue;
+            else if (job == prev_job) continue;
+
+            if (!job_in_queue(&rr_head, job) && (job != cur_job)) {
+                enqueue(&rr_head, job);
+            }
+        }
+
+        // Enqueue the finished job only after enqueueing all other available jobs
+        if (prev_job != NULL && 
+            prev_job != cur_job &&
+            !job_in_queue(&rr_head, prev_job) &&
+            prev_job->completion_time < 0) 
+        {
+          enqueue(&rr_head, prev_job);
+        }
+
+        // Check if any new jobs can be run
+        if (cur_job == NULL) {
+            cur_job = dequeue(&rr_head);
+        }
+
+        // Continue if no new jobs can be run
+        if (cur_job == NULL) {
+            t++;
+            continue;
+        }
+
+        // Print the job status line
+        if (prev_job == cur_job && prev_job->current_time_ran < slice) {
+            prev_job->current_time_ran++;
+        }
+        else {
+            if (prev_job != NULL) {
+                print_status(prev_job);
+                prev_job->current_time_ran = 0;
+            }
+
+            cur_job->current_time_ran = 1;
+            cur_job->current_start_time = t;
+        }
+
+        t = cpu_tick(cur_job, t, 1);
+
+        if (check_done()) break;
+
+        prev_job = cur_job;
+
+        if ((cur_job->time_ran % slice == 0) || (cur_job->completion_time >= 0)) {
+            cur_job = dequeue(&rr_head);
+        }
+    }
+
+    print_status(cur_job);
 
     printf("End of execution with RR.\n");
 }
@@ -317,7 +405,15 @@ int main(int argc, char **argv){
     }
     else if (strcmp(pname, "RR") == 0)
     {
-        // TODO
+        policy_RR(slice);
+
+        if (analysis == 1) {
+            printf("Begin analyzing RR:\n");
+
+            print_analysis();
+
+            printf("End analyzing RR.\n");
+        }
     }
     else if (strcmp(pname, "LT") == 0)
     {
@@ -347,27 +443,29 @@ int get_job(struct job **job, int time) {
     return -1;
 }
 
-int cpu_tick(struct job *job, int time) {
-    if (job->start_time < 0) {
-        job->start_time = time;
-    }
+int cpu_tick(struct job *job, int time, int count) {
+    for (int i = 0; i < count; i++) {
+        if (job->start_time < 0) {
+            job->start_time = time;
+        }
 
-    job->time_ran++;
+        job->time_ran++;
 
-    if (job->last_ran >= 0) {
-        job->wait_time += time - job->last_ran - 1;
-    }
-    else {
-        job->wait_time = time - job->arrival;
-    }
+        if (job->last_ran >= 0) {
+            job->wait_time += time - job->last_ran - 1;
+        }
+        else {
+            job->wait_time = time - job->arrival;
+        }
 
-    job->last_ran = time; 
+        job->last_ran = time; 
 
-    if (job->time_ran == job->length) {
-        job->completion_time = time + 1;
-    }
+        if (job->time_ran == job->length) {
+            job->completion_time = time + 1;
+        }
+    } 
 
-    return time + 1;
+    return time + count;
 }
 
 bool check_done() {
@@ -406,4 +504,46 @@ void print_analysis() {
     float average_wait = (float)total_wait / numofjobs;
 
     printf("Average -- Response: %.2f  Turnaround %.2f  Wait %.2f\n", average_response, average_turnaround, average_wait);
+}
+
+void enqueue(struct job **head_pointer, struct job *job) {
+    struct job *cur = *head_pointer;
+    struct job *prev = NULL;
+
+    while (cur != NULL) {
+        prev = cur;
+        cur = cur->rr_next;
+    }
+
+    if (prev != NULL) {
+        prev->rr_next = job;
+    }
+    else {
+        *head_pointer = job;
+    }
+}
+
+struct job *dequeue(struct job **head_pointer) {
+    if (*head_pointer == NULL) return NULL;
+
+    struct job *ret = *head_pointer;
+
+    *head_pointer = (*head_pointer)->rr_next;
+    ret->rr_next = NULL;
+
+    return ret;
+}
+
+bool job_in_queue(struct job **head_pointer, struct job *job) {
+    struct job *cur = *head_pointer;
+
+    while (cur != NULL) {
+        if (cur == job) {
+            return true;
+        }
+
+        cur = cur->rr_next;
+    }
+
+    return false;
 }
