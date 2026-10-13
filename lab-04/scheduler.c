@@ -237,21 +237,35 @@ void policy_RR(int slice)
         for (struct job *job = head; job != NULL; job = job->next) {
             if (job->arrival > t) continue;
             else if (job->completion_time >= 0) continue;
+            else if (job == prev_job) continue;
 
             if (!job_in_queue(&rr_head, job) && (job != cur_job)) {
                 enqueue(&rr_head, job);
             }
         }
 
-        if (cur_job != NULL) {
-            t = cpu_tick(cur_job, t, 1);
+        // Enqueue the finished job only after enqueueing all other available jobs
+        if (prev_job != NULL && 
+            prev_job != cur_job &&
+            !job_in_queue(&rr_head, prev_job) &&
+            prev_job->completion_time < 0) 
+        {
+          enqueue(&rr_head, prev_job);
         }
-        else {
+
+        // Check if any new jobs can be run
+        if (cur_job == NULL) {
+            cur_job = dequeue(&rr_head);
+        }
+
+        // Continue if no new jobs can be run
+        if (cur_job == NULL) {
             t++;
             continue;
         }
 
-        if (prev_job == cur_job) {
+        // Print the job status line
+        if (prev_job == cur_job && prev_job->current_time_ran < slice) {
             prev_job->current_time_ran++;
         }
         else {
@@ -263,6 +277,8 @@ void policy_RR(int slice)
             cur_job->current_time_ran = 1;
             cur_job->current_start_time = t;
         }
+
+        t = cpu_tick(cur_job, t, 1);
 
         if (check_done()) break;
 
@@ -488,6 +504,7 @@ struct job *dequeue(struct job **head_pointer) {
     struct job *ret = *head_pointer;
 
     *head_pointer = (*head_pointer)->rr_next;
+    ret->rr_next = NULL;
 
     return ret;
 }
