@@ -160,8 +160,54 @@ void read_job_config(const char* filename)
 void policy_SJF()
 {
     printf("Execution trace with SJF:\n");
+	struct job *cur_job;
 
-    // TODO: implement SJF policy
+    struct job *prev_job = NULL;
+
+    int t = 0; 
+
+    while (1) { 
+        while (get_job(&cur_job, t) < 0) {
+            t++;
+        } 
+        // if prev_job exists, and its completion time is less than zero (has not finished) you finish the job
+        // SJF never interrupts a running job
+        if(prev_job != NULL && prev_job->completion_time<0){
+            cur_job = prev_job;
+        }
+        // you find the shortest length job, if job is in the future - skip, if job has finished - skip
+        else{
+            for (struct job *job = head; job != NULL; job = job->next) {
+                if (job->arrival > t) continue;
+                else if (job->completion_time >= 0) continue;
+        // arrived and unfinished job checks if its shorter than the current, if so, set current to the arrived job
+                if (job->length < cur_job->length) {
+                    cur_job = job;
+                }
+            }
+        }
+
+        if (prev_job == cur_job) {
+            prev_job->current_time_ran++;
+        }
+        else {
+            if (prev_job != NULL) {
+                print_status(prev_job);
+                prev_job->current_time_ran = 0;
+            }
+
+            cur_job->current_time_ran = 1;
+            cur_job->current_start_time = t;
+        }
+
+        t = cpu_tick(cur_job, t, 1);
+
+        if (check_done()) break;
+
+        prev_job = cur_job;
+    }
+
+    print_status(cur_job);
 
     printf("End of execution with SJF.\n");
 
@@ -464,7 +510,12 @@ int main(int argc, char **argv){
     }
     else if (strcmp(pname, "SJF") == 0)
     {
-        // TODO
+		policy_SJF();
+        if(analysis == 1){
+            printf("Begin analyzing SJF:\n");
+            print_analysis();
+            printf("End analyzing SJF.\n");  
+        }
     }
     else if (strcmp(pname, "STCF") == 0)
     {
