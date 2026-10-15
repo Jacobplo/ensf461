@@ -383,31 +383,41 @@ void policy_LT(int slice)
 
 }
 
-
 void policy_FIFO(){
     printf("Execution trace with FIFO:\n");
-    int now = 0;
-    int done = 0;
+    struct job *cur_job;
 
-    while (done < numofjobs) {
-        struct job *best = NULL;
-        // FIFO runs the earliest-arriving unfinished job to completion.
-        for (struct job *j = head; j != NULL; j = j->next) {
-            if (j->remaining <= 0)
-                continue;
-            if (best == NULL || j->arrival < best->arrival ||
-                (j->arrival == best->arrival && j->id < best->id))
-                best = j;
+    struct job *prev_job = NULL;
+
+    int t = 0; 
+
+    while (1) { 
+        while (get_job(&cur_job, t) < 0) {
+            t++;
+        } 
+
+        if (prev_job == cur_job) {
+            prev_job->current_time_ran++;
         }
-        if (now < best->arrival)
-            now = best->arrival;  // CPU was idle.
-        int duration = best->remaining;
-        run_segment(best, now, duration);
-        now += duration;
-        done++;
+        else {
+            if (prev_job != NULL) {
+                print_status(prev_job);
+                prev_job->current_time_ran = 0;
+            }
+
+            cur_job->current_time_ran = 1;
+            cur_job->current_start_time = t;
+        }
+
+        t = cpu_tick(cur_job, t, 1);
+
+        if (check_done()) break;
+
+        prev_job = cur_job;
     }
 
-    // TODO: implement FIFO policy
+    print_status(cur_job);
+
 
     printf("End of execution with FIFO.\n");
 }
@@ -447,7 +457,9 @@ int main(int argc, char **argv){
     if (strcmp(pname, "FIFO") == 0){
         policy_FIFO();
         if (analysis == 1){
-            // TODO: perform analysis
+			printf("Begin analyzing FIFO:\n");
+            print_analysis();
+            printf("End analyzing FIFO.\n");
         }
     }
     else if (strcmp(pname, "SJF") == 0)
