@@ -316,6 +316,69 @@ void policy_LT(int slice)
     // int winning_ticket = rand() % total_tickets;
     // And pick the winning job using the linked list approach discussed in class, or equivalent
 
+     if (slice <= 0) {
+        fprintf(stderr, "Error: time slice must be positive.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    int t = 0;
+
+    // Continue scheduling until all jobs finish.
+    while (!check_done()) {
+
+        int total_tickets = 0;
+
+        // Count tickets for jobs that have arrived and are unfinished.
+        for (struct job *job = head; job != NULL; job = job->next) {
+            if (job->arrival <= t && job->completion_time < 0) {
+                total_tickets += job->tickets;
+            }
+        }
+
+        // If no jobs are available, the CPU remains idle.
+        if (total_tickets == 0) {
+            t++;
+            continue;
+        }
+
+        // Randomly select the winning ticket.
+        int winning_ticket = rand() % total_tickets;
+
+        int ticket_counter = 0;
+        struct job *cur_job = NULL;
+
+        // Find the job that owns the winning ticket.
+        for (struct job *job = head; job != NULL; job = job->next) {
+
+            if (job->arrival > t || job->completion_time >= 0) {
+                continue;
+            }
+
+            ticket_counter += job->tickets;
+
+            if (winning_ticket < ticket_counter) {
+                cur_job = job;
+                break;
+            }
+        }
+
+        // Determine the execution duration.
+        int time_left = cur_job->length - cur_job->time_ran;
+        int run_time = min(slice, time_left);
+
+        // Store the current execution information.
+        cur_job->current_start_time = t;
+        cur_job->current_time_ran = run_time;
+
+        // Execute the job one tick at a time.
+        for (int i = 0; i < run_time; i++) {
+            t = cpu_tick(cur_job, t, 1);
+        }
+
+        // Print the execution trace for this time slice.
+        print_status(cur_job);
+    }
+
     printf("End of execution with LT.\n");
 
 }
@@ -418,6 +481,15 @@ int main(int argc, char **argv){
     else if (strcmp(pname, "LT") == 0)
     {
         // TODO
+        policy_LT(slice);
+
+        if (analysis == 1) {
+            printf("Begin analyzing LT:\n");
+
+            print_analysis();
+
+            printf("End analyzing LT.\n");
+        }
     }
 
 	exit(0);
