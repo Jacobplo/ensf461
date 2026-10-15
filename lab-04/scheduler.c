@@ -43,7 +43,8 @@ struct job *head = NULL;
 int get_job(struct job **job, int time);
 
 /**
- * Update the state of a job based on the current time, and return time - 1
+ * Update the state of a job based on the current time and count of cpu_ticks
+ * Returns time + count
  */
 int cpu_tick(struct job *job, int time, int count);
 
@@ -242,6 +243,7 @@ void policy_STCF()
             }
         }
 
+        // Print the status of the previous job if a new job has started.
         if (prev_job == cur_job) {
             prev_job->current_time_ran++;
         }
@@ -362,7 +364,7 @@ void policy_LT(int slice)
     // int winning_ticket = rand() % total_tickets;
     // And pick the winning job using the linked list approach discussed in class, or equivalent
 
-     if (slice <= 0) {
+    if (slice <= 0) {
         fprintf(stderr, "Error: time slice must be positive.\n");
         exit(EXIT_FAILURE);
     }
@@ -416,10 +418,7 @@ void policy_LT(int slice)
         cur_job->current_start_time = t;
         cur_job->current_time_ran = run_time;
 
-        // Execute the job one tick at a time.
-        for (int i = 0; i < run_time; i++) {
-            t = cpu_tick(cur_job, t, 1);
-        }
+        t = cpu_tick(cur_job, t, run_time);
 
         // Print the execution trace for this time slice.
         print_status(cur_job);
@@ -579,28 +578,29 @@ int get_job(struct job **job, int time) {
 }
 
 int cpu_tick(struct job *job, int time, int count) {
-    for (int i = 0; i < count; i++) {
-        if (job->start_time < 0) {
-            job->start_time = time;
-        }
+    if (job->start_time < 0) {
+        job->start_time = time;
+    }
 
-        job->time_ran++;
+    int t;
+    for (t = time; t < time + count; t++) {
+        job->time_ran += 1;
 
         if (job->last_ran >= 0) {
-            job->wait_time += time - job->last_ran - 1;
+            job->wait_time += t - job->last_ran - 1;
         }
         else {
-            job->wait_time = time - job->arrival;
+            job->wait_time = t - job->arrival;
         }
 
-        job->last_ran = time; 
+        job->last_ran = t; 
 
         if (job->time_ran == job->length) {
-            job->completion_time = time + 1;
+            job->completion_time = t + 1;
         }
     } 
 
-    return time + count;
+    return t;
 }
 
 bool check_done() {
