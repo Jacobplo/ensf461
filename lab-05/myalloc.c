@@ -36,7 +36,7 @@ int myinit(size_t size) {
   }
 
   head = _arena_start;
-  head->size = 0;
+  head->size = _arena_size - sizeof(node_t);
   head->is_free = 1;
   head->bwd = NULL;
   head->fwd = NULL;
@@ -83,50 +83,65 @@ void* myalloc(size_t size) {
 void myfree(void *ptr) {
   node_t *header = (node_t *)(ptr - sizeof(node_t));
 
+  // Check if the previous chunk can be coalesced.
+  if (header->bwd != NULL) {
+    node_t *prev_header = header->bwd;
+
+    if (prev_header->is_free) {
+      prev_header->size += header->size + sizeof(node_t);
+      prev_header->fwd = header->fwd;
+
+      header = prev_header;
+    }
+  }
+
+  // Check if the next chunk can be coalesced.
+  if (header->fwd != NULL) {
+    node_t *next_header = header->fwd;
+    
+    // Set the next header's bwd field for if the previous chunk was coalesced.
+    next_header->bwd = header;
+
+    if (next_header->is_free) {
+      header->size += next_header->size + sizeof(node_t);
+      header->fwd = next_header->fwd;
+    }
+  }
+
   header->is_free = 1;
 }
 
 static int getfree(node_t **node, size_t size) {
   *node = NULL;
 
-  // Head not yet initialized
-  if (head->size == 0) {
-    if (_arena_size - sizeof(node_t) >= size) {
-      *node = head;
-      (*node)->size = size;
-      (*node)->is_free = 0;
-      (*node)->fwd = NULL;
-      (*node)->bwd = NULL;
-      return 0;
-    }
-
-    statusno = ERR_OUT_OF_MEMORY;
-    return ERR_OUT_OF_MEMORY;
-  } 
-
   node_t *cur = head; 
-  size_t total_size = 0;
   while (1) {
-    total_size += cur->size + sizeof(node_t);
-
+    // Check if this chunk has enough space.
     if (cur->is_free && (cur->size >= size)) {
       *node = cur;
+      size_t size_extra = (*node)->size - size;
+
+      // Split the chunk into two chunks if possible.
+      if (size_extra >= sizeof(node_t)) {
+        node_t *next = (void *)(*node) + sizeof(node_t) + size;
+
+        next->size = size_extra - sizeof(node_t);
+        next->fwd = (*node)->fwd;
+        next->bwd = *node;
+        next->is_free = 1;
+
+        (*node)->size = size;
+        (*node)->fwd = next;
+      }
+      
+      (*node)->is_free = 0;
+
       return 0;
     }
 
     if (cur->fwd == NULL) break;
 
     cur = cur->fwd;
-  }
-
-  // Handle case where chunks are not yet created.
-  if (_arena_size >= size + total_size + sizeof(node_t)) {
-    *node = _arena_start + total_size; 
-    (*node)->bwd = cur; 
-    (*node)->size = size;
-    (*node)->is_free = 0;
-    (*node)->fwd = NULL;
-    return 0;
   }
 
   statusno = ERR_OUT_OF_MEMORY;
