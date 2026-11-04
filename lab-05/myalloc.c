@@ -1,11 +1,11 @@
 #include <stddef.h>
-#include "myalloc.h"
-
 #include <stdbool.h>
+
 #include <stdio.h>
 #include <sys/mman.h>
 #include <unistd.h>
 #include <string.h>
+#include "myalloc.h"
 
 int statusno;
 
@@ -27,8 +27,6 @@ int myinit(size_t size) {
   size_t page_size = getpagesize();
   _arena_size = DIV_CEIL(size, page_size) * page_size;
   _arena_start = mmap(NULL, _arena_size, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-
-  memset(_arena_start, 0, _arena_size);
 
   if (_arena_start == MAP_FAILED) {
     statusno = ERR_SYSCALL_FAILED;
@@ -60,6 +58,9 @@ int mydestroy() {
   }
 
   initialized = false;
+  _arena_start = NULL;
+  _arena_size = 0;
+  head = NULL;
 
   return 0;
 }
@@ -81,6 +82,14 @@ void* myalloc(size_t size) {
 }
 
 void myfree(void *ptr) {
+  if(!initialized) {
+    statusno = ERR_UNINITIALIZED;
+    return;
+  }
+  if(ptr == NULL){
+    statusno = ERR_BAD_ARGUMENTS;
+    return;
+  }
   node_t *header = (node_t *)(ptr - sizeof(node_t));
 
   // Check if the previous chunk can be coalesced.
@@ -105,6 +114,7 @@ void myfree(void *ptr) {
     if (next_header->is_free) {
       header->size += next_header->size + sizeof(node_t);
       header->fwd = next_header->fwd;
+      if(header->fwd != NULL) header->fwd->bwd = header;
     }
   }
 
@@ -127,6 +137,7 @@ static int getfree(node_t **node, size_t size) {
 
         next->size = size_extra - sizeof(node_t);
         next->fwd = (*node)->fwd;
+        if(next->fwd !=NULL) next->fwd->bwd = next;
         next->bwd = *node;
         next->is_free = 1;
 
