@@ -50,6 +50,8 @@ void append_log(const char *str);
 
 bool is_prime(int num);
 
+int fib(int n);
+
 int main(int argc, char* argv[]) {
     const char usage[] = "Usage: mathserver.out <input trace> <output trace>\n";
     char* input_trace;
@@ -204,6 +206,7 @@ void *ctx_worker(void *arg) {
     while (ctx->head != NULL) {
         op_node_t op = dequeue(ctx);
 
+        int num;
         switch (op.type) {
             case SET:
                 ctx->val = op.operand;
@@ -237,6 +240,8 @@ void *ctx_worker(void *arg) {
                 break;
 
             case FIB:
+                num = fib(ctx->val); 
+                snprintf(log_builder, 128, "ctx %02d: fib (result: %d)\n", id, num);
                 break;
 
             default:
@@ -285,4 +290,11 @@ bool is_prime(int num) {
     }
 
     return true;
+}
+
+int fib(int n) {
+    if (n <= 0) return 0;
+    if (n == 1) return 1;
+
+    return fib(n - 1) + fib(n - 2);
 }
