@@ -199,14 +199,15 @@ void *ctx_worker(void *arg) {
 
     ctx_t *ctx = &contexts[id];
 
-    char log_buf[1024] = { 0 };
+    char log_buf[4096] = { 0 };
     int logs_buffered = 0;
-    char log_builder[128];
+    char log_builder[1024];
 
     while (ctx->head != NULL) {
         op_node_t op = dequeue(ctx);
 
         int num;
+        char buf[128];
         switch (op.type) {
             case SET:
                 ctx->val = op.operand;
@@ -233,7 +234,21 @@ void *ctx_worker(void *arg) {
                 snprintf(log_builder, 128, "ctx %02d: div %d (result: %d)\n", id, op.operand, ctx->val);
                 break;
 
-            case PRI:
+            case PRI: 
+                snprintf(buf, 128, "ctx %02d: primes (result: ", id);
+                strcpy(log_builder, buf);
+
+                for (int i = 2, first = true; i < ctx->val; i++) {
+                    if (!is_prime(i)) continue;
+
+                    if (first) first = false;
+                    else strcat(log_builder, ", ");
+                    
+                    snprintf(buf, 128, "%d", i);
+                    strcat(log_builder, buf);
+                }
+
+                strcat(log_builder, ")\n");
                 break;
 
             case PIA:
