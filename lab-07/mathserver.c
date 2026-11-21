@@ -35,6 +35,7 @@ typedef struct ctx_t {
 
 static ctx_t contexts[NUM_CTX];
 static FILE *output_file;
+static pthread_mutex_t m;
 
 void init_contexts(void);
 
@@ -48,9 +49,11 @@ void *ctx_worker(void *arg);
 
 void append_log(const char *str);
 
-bool is_prime(int num);
-
 int fib(int n);
+
+double pia(int n);
+
+bool *pri(int n);
 
 int main(int argc, char* argv[]) {
     const char usage[] = "Usage: mathserver.out <input trace> <output trace>\n";
@@ -59,6 +62,8 @@ int main(int argc, char* argv[]) {
     char buffer[1024];
 
     init_contexts();
+
+    pthread_mutex_init(&m, NULL);
 
     // Parse command line arguments
     if (argc != 3) {
@@ -199,14 +204,14 @@ void *ctx_worker(void *arg) {
 
     ctx_t *ctx = &contexts[id];
 
-    char log_buf[4096] = { 0 };
+    char *log_buf = malloc(4096 * 4096);
+    log_buf[0] = 0;
     int logs_buffered = 0;
-    char log_builder[1024];
+    char *log_builder = malloc(2048 * 4096);
 
     while (ctx->head != NULL) {
         op_node_t op = dequeue(ctx);
 
-        int num;
         char buf[128];
         switch (op.type) {
             case SET:
@@ -238,8 +243,10 @@ void *ctx_worker(void *arg) {
                 snprintf(buf, 128, "ctx %02d: primes (result: ", id);
                 strcpy(log_builder, buf);
 
+                bool *is_prime = pri(ctx->val);
+
                 for (int i = 2, first = true; i < ctx->val; i++) {
-                    if (!is_prime(i)) continue;
+                    if (!is_prime[i]) continue;
 
                     if (first) first = false;
                     else strcat(log_builder, ", ");
@@ -248,15 +255,23 @@ void *ctx_worker(void *arg) {
                     strcat(log_builder, buf);
                 }
 
+                free(is_prime);
+
                 strcat(log_builder, ")\n");
                 break;
 
             case PIA:
+                {
+                    double num = pia(ctx->val); 
+                    snprintf(log_builder, 128, "ctx %02d: pia (result %.15lf)\n", id, num);
+                } 
                 break;
 
             case FIB:
-                num = fib(ctx->val); 
-                snprintf(log_builder, 128, "ctx %02d: fib (result: %d)\n", id, num);
+                {
+                    int num = fib(ctx->val);          
+                    snprintf(log_builder, 128, "ctx %02d: fib (result: %d)\n", id, num);
+                } 
                 break;
 
             default:
@@ -278,33 +293,19 @@ void *ctx_worker(void *arg) {
         append_log(log_buf);
     }
 
+    free(log_buf);
+    free(log_builder);
+
     return NULL;
 }
 
-void append_log(const char *str) {
-    static pthread_mutex_t m;
-    static bool initialized = false;
-    
-    if (!initialized) {
-        pthread_mutex_init(&m, NULL);
-        initialized = true;
-    }
-
+void append_log(const char *str) { 
     pthread_mutex_lock(&m);
 
     fputs(str, output_file);
+    fflush(output_file);
 
     pthread_mutex_unlock(&m);
-}
-
-bool is_prime(int num) {
-    for (int i = 2; i < num; i++) {
-        if (num % i == 0) {
-            return false;
-        }
-    }
-
-    return true;
 }
 
 int fib(int n) {
@@ -312,4 +313,39 @@ int fib(int n) {
     if (n == 1) return 1;
 
     return fib(n - 1) + fib(n - 2);
+}
+
+double pia(int n) {
+    double ret = 0.0;
+
+    for (int k = 0; k < n; k++) {
+        double term = 1.0 / (2 * k + 1);
+
+        if (k % 2 == 0) {
+            ret += term;
+        }
+        else {
+            ret -= term;
+        }
+    }
+
+    return ret * 4;
+}
+
+bool *pri(int n) {
+    bool *is_prime = malloc(sizeof(bool) * (n + 1));
+    memset(is_prime, true, n + 1);
+    is_prime[0] = false;
+    is_prime[1] = false;
+
+    for (size_t i = 2; i < n + 1; i++) {
+        if (!is_prime[i]) continue;
+        if ((long)i * i > n) break;
+
+        for (size_t j = 2 * i; j < n + 1; j += i) {
+            is_prime[j] = false;
+        }
+    }
+
+    return is_prime;
 }
