@@ -9,6 +9,11 @@
 #include <dmtx.h>
 #include <wand/magick-wand.h>
 #include <semaphore.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <limits.h>
+#include <stdint.h>
 
 #define TRUE 1
 #define FALSE 0
@@ -22,17 +27,34 @@
 typedef struct {
     char filename[MAX_FNAME_LENGTH];
     char message[MAX_MESSAGE_LENGTH];
+    int claimed;   // Protected by the named semaphore
 } filedata;
 
 // FD for shared memory object
-int sharedfd;
-
-// Ptr to shared memory object
-// Note, this needs to be reinitialized after a fork
-char* sharedmem;
-
-// Number of files in the directory
+int sharedfd = -1;
+char* sharedmem = NULL;
 int numfiles = 0;
+
+static char shm_name[64];
+static char sem_name[64];
+static size_t shared_size;
+
+static void cleanup_shared_memory(void) {
+    if (sharedmem != NULL) {
+        munmap(sharedmem, shared_size);
+        sharedmem = NULL;
+    }
+    if (sharedfd != -1) {
+        close(sharedfd);
+        shm_unlink(shm_name);
+        sharedfd = -1;
+    }
+}
+
+static int is_png(const char* name) {
+    size_t len = strlen(name);
+    return len >= 4 && strcmp(name + len - 4, ".png") == 0;
+}
 
 // Generate a list of files in the directory
 // Must create a shared memory object in the "sharedfd" global variable
@@ -40,19 +62,18 @@ int numfiles = 0;
 // Must set the "numfiles" global variable
 // Must return TRUE on success, FALSE on failure
 int generate_file_list(char* path) {
-    DIR *dir;
-    struct dirent *ent;
+    DIR* dir = opendir(path);
+    struct dirent* ent;
     numfiles = 0;
-    if ((dir = opendir (path)) != NULL) {
-        while ((ent = readdir (dir)) != NULL) {
-            if (strstr(ent->d_name, ".png") != NULL) {
-                numfiles++;
-            }
-        }
-        closedir (dir);
-    } else {
-        perror ("");
+    if (dir == NULL) {
+        perror("opendir");
         return FALSE;
+    }
+
+    while ((ent = readdir(dir)) != NULL) {
+        if (is_png(ent->d_name)) {
+            numfiles++;
+        }
     }
     
     // Then, create a shared memory objects, resize it to store the file list,
